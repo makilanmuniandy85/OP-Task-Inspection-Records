@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Inspection App</title>
+    <!-- Tailwind CSS for sleek, mobile-friendly UI -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- SheetJS for real Excel file generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800 antialiased min-h-screen flex flex-col pb-24">
+
+    <!-- Header Navigation Bar -->
+    <header class="bg-emerald-700 text-white shadow-md sticky top-0 z-50 px-4 py-3 flex items-center justify-between">
+        <h1 class="text-xl font-bold tracking-tight">🌴 Task Inspection Form</h1>
+        <button id="btnQuickFill" class="bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold py-1.5 px-3 rounded-lg border border-emerald-400 transition-colors">
+            ⚡ Demo Fill
+        </button>
+    </header>
+
+    <main class="max-w-md mx-auto w-full p-4 space-y-5 flex-1">
+        
+        <!-- Metadata Header Block (Entered Only Once) -->
+        <section class="bg-white rounded-2xl p-4 shadow-sm border border-gray-200/80 space-y-4">
+            <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">📋 General Metadata</h2>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">OC Name</label>
+                    <input type="text" id="ocName" placeholder="Enter OC Name" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Date</label>
+                    <input type="date" id="inspectionDate" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Field / Block</label>
+                    <input type="text" id="fieldName" placeholder="e.g. Field A" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Task No.</label>
+                    <input type="number" id="taskNo" placeholder="e.g. 1" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                </div>
+            </div>
+        </section>
+
+        <!-- Dynamic Filter Controls -->
+        <section class="bg-white rounded-xl p-3 shadow-sm border border-gray-200/80 flex items-center gap-2">
+            <span class="text-xs font-bold text-gray-500 whitespace-nowrap">🔍 Filter:</span>
+            <select id="palmFilter" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                <option value="all">Show All Palms (1 - 50)</option>
+                <option value="harvested">Harvested Only</option>
+                <option value="not_harvested">Not Harvested Only</option>
+                <option value="with_remarks">With Active Remarks</option>
+            </select>
+        </section>
+
+        <!-- Palms Matrix List Area -->
+        <section id="palmsContainer" class="space-y-4">
+            <!-- JavaScript dynamically loops and appends 50 Palms here -->
+        </section>
+
+        <!-- Dynamic Summary Card Block -->
+        <section class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200/80 space-y-3">
+            <h2 class="text-sm font-bold text-gray-700 border-b pb-2 flex items-center justify-between">
+                <span>📊 Current Metrics Summary</span>
+                <span class="text-xs text-gray-400 font-normal">Live Updates</span>
+            </h2>
+            
+            <div class="grid grid-cols-2 gap-3 text-xs pt-1">
+                <div class="bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                    <span class="text-gray-500 block">Total Harvested</span>
+                    <strong id="summaryHarvested" class="text-base text-emerald-700">0</strong>
+                </div>
+                <div class="bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                    <span class="text-gray-500 block">Total Pruned</span>
+                    <strong id="summaryPruned" class="text-base text-emerald-700">0</strong>
+                </div>
+                <div class="bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                    <span class="text-gray-500 block">Total Left Bunches</span>
+                    <strong id="summaryLeft" class="text-base text-gray-800">0</strong>
+                </div>
+                <div class="bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                    <span class="text-gray-500 block">Total Missed Bunches</span>
+                    <strong id="summaryMissed" class="text-base text-gray-800">0</strong>
+                </div>
+            </div>
+
+            <div class="bg-emerald-50/60 border border-emerald-200/60 rounded-xl p-3 mt-2">
+                <div class="flex justify-between items-center text-xs">
+                    <span class="text-emerald-800 font-medium">Total ULF (Uncollected Loose Fruit)</span>
+                    <strong id="summaryUlfTotal" class="text-sm text-emerald-900">0</strong>
+                </div>
+                <div class="flex justify-between items-center text-xs mt-1.5 pt-1.5 border-t border-emerald-200/40">
+                    <span class="text-emerald-800 font-semibold">⚡ ULF Avg (Harvested Only)</span>
+                    <strong id="summaryUlfAvg" class="text-base text-emerald-900">0.00</strong>
+                </div>
+            </div>
+        </section>
+
+        <!-- Separated Action Controls -->
+        <section class="space-y-3 pt-2">
+            <!-- 1. Download Button Row -->
+            <button id="btnDownloadExcel" class="w-full bg-emerald-600 active:scale-[0.99] text-white font-bold py-3.5 px-4 rounded-xl shadow-md flex items-center justify-between transition-all group">
+                <span class="flex items-center gap-2">📥 <span>Download Excel File</span></span>
+                <span id="badgeDownload" class="bg-emerald-700 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">Step 1</span>
+            </button>
+
+            <!-- 2. WhatsApp Button Row -->
+            <button id="btnShareWhatsApp" class="w-full bg-teal-600 active:scale-[0.99] text-white font-bold py-3.5 px-4 rounded-xl shadow-md flex items-center justify-between transition-all group">
+                <span class="flex items-center gap-2">💬 <span>Share via WhatsApp</span></span>
+                <span id="badgeShare" class="bg-teal-700 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">Step 2</span>
+            </button>
+
+            <!-- 3. Dynamic Sequential Unlock Button (Hidden by default) -->
+            <button id="btnNextTask" class="w-full hidden bg-amber-500 hover:bg-amber-600 text-slate-900 font-black py-4 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform animate-bounce mt-4">
+                🔄 Let's Do Another Task
+            </button>
+        </section>
+
+    </main>
+
+    <!-- App State Controller & Interaction Scripts -->
+    <script>
+        const TOTAL_PALMS = 50;
+        let dataStore = [];
+        let excelClicked = false;
+        let whatsappClicked = false;
+
+        // Populate baseline blank datasets
+        function initDataStore() {
+            dataStore = [];
+            for (let i = 1; i <= TOTAL_PALMS; i++) {
+                dataStore.push({
+                    palmNo: i,
+                    harvested: 'N',
+                    pruning: 'N',
+                    ulf: '',
+                    leftBunches: '',
+                    missedBunches: '',
+                    remarks: ''
+                });
+            }
+        }
+
+        // Render data input rows onto screen mapping all 50 items
+        function renderPalms() {
+            const container = document.getElementById('palmsContainer');
+            const activeFilter = document.getElementById('palmFilter').value;
+            container.innerHTML = '';
+
+            dataStore.forEach((palm, index) => {
+                // Apply layout filters dynamically
+                if (activeFilter === 'harvested' && palm.harvested !== 'Y') return;
+                if (activeFilter === 'not_harvested' && palm.harvested !== 'N') return;
+                if (activeFilter === 'with_remarks' && !palm.remarks.trim()) return;
+
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-2xl p-4 shadow-sm border border-gray-200/80 space-y-3 relative transition-all";
+                
+                card.innerHTML = `
+                    <div class="flex items-center justify-between border-b border-gray-100 pb-2">
+                        <span class="bg-gray-800 text-white font-bold text-xs px-2.5 py-1 rounded-lg">Palm #${palm.palmNo}</span>
+                        <div class="flex gap-2">
+                            <!-- Harvested Option Toggle Buttons -->
+                            <div class="flex items-center bg-gray-100 rounded-lg p-0.5 border border-gray-200">
+                                <span class="text-[10px] uppercase font-bold text-gray-400 px-1.5">HV:</span>
+                                <button onclick="updateToggle(${index}, 'harvested', 'Y')" class="px-2.5 py-1 text-xs font-bold rounded-md transition-all ${palm.harvested === 'Y' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600'}">Y</button>
+                                <button onclick="updateToggle(${index}, 'harvested', 'N')" class="px-2.5 py-1 text-xs font-bold rounded-md transition-all ${palm.harvested === 'N' ? 'bg-red-500 text-white shadow-sm' : 'text-gray-600'}">N</button>
+                            </div>
+                            <!-- Pruning Option Toggle Buttons -->
+                            <div class="flex items-center bg-gray-100 rounded-lg p-0.5 border border-gray-200">
+                                <span class="text-[10px] uppercase font-bold text-gray-400 px-1.5">PR:</span>
+                                <button onclick="updateToggle(${index}, 'pruning', 'Y')" class="px-2.5 py-1 text-xs font-bold rounded-md transition-all ${palm.pruning === 'Y' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600'}">Y</button>
+                                <button onclick="updateToggle(${index}, 'pruning', 'N')" class="px-2.5 py-1 text-xs font-bold rounded-md transition-all ${palm.pruning === 'N' ? 'bg-red-500 text-white shadow-sm' : 'text-gray-600'}">N</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Numerical typing entries layout metrics inputs grid -->
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 mb-0.5">ULF Entry</label>
+                            <input type="number" value="${palm.ulf}" placeholder="0" oninput="updateVal(${index}, 'ulf', this.value)" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-xs text-center focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 mb-0.5">Left Bunches</label>
+                            <input type="number" value="${palm.leftBunches}" placeholder="0" oninput="updateVal(${index}, 'leftBunches', this.value)" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-xs text-center focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 mb-0.5">Missed Bunches</label>
+                            <input type="number" value="${palm.missedBunches}" placeholder="0" oninput="updateVal(${index}, 'missedBunches', this.value)" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-xs text-center focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Text entry layout field remarks comments -->
+                    <div class="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2 py-1 border border-gray-100">
+                        <span class="text-xs">💬</span>
+                        <input type="text" value="${palm.remarks}" placeholder="Remarks (Blank means nil)" oninput="updateVal(${index}, 'remarks', this.value)" class="w-full bg-transparent text-xs focus:outline-none placeholder:text-gray-400">
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            calculateTotals();
+        }
+
+        function updateToggle(idx, key, val) {
+            dataStore[idx][key] = val;
+            calculateTotals();
+            // Partial render minimization to preserve screen input focusing stability
+            const container = document.getElementById('palmsContainer');
+            if (document.getElementById('palmFilter').value !== 'all') {
+                renderPalms();
+            } else {
+                // Instantly style toggles directly inside element logic natively
+                renderPalms(); 
+            }
+        }
+
+        function updateVal(idx, key, val) {
+            dataStore[idx][key] = val;
+            calculateTotals();
+        }
+
+        // Aggregate core mathematical figures and recalculate real-time counters
+        function calculateTotals() {
+            let totalHarvested = 0;
+            let totalPruned = 0;
+            let totalUlf = 0;
+            let totalLeft = 0;
+            let totalMissed = 0;
+
+            dataStore.forEach(p => {
+                if (p.harvested === 'Y') totalHarvested++;
+                if (p.pruning === 'Y') totalPruned++;
+                
+                totalUlf += Number(p.ulf || 0);
+                totalLeft += Number(p.leftBunches || 0);
+                totalMissed += Number(p.missedBunches || 0);
+            });
+
+            const ulfAvg = totalHarvested > 0 ? (totalUlf / totalHarvested) : 0;
+
+            // Paint UI Elements mapping computed items cleanly
+            document.getElementById('summaryHarvested').innerText = totalHarvested;
+            document.getElementById('summaryPruned').innerText = totalPruned;
+            document.getElementById('summaryLeft').innerText = totalLeft;
+            document.getElementById('summaryMissed').innerText = totalMissed;
+            document.getElementById('summaryUlfTotal').innerText = totalUlf;
+            document.getElementById('summaryUlfAvg').innerText = ulfAvg.toFixed(2);
+        }
+
+        // Strict validation checklist checking workflow parameters activation steps
+        function verifyWorkflowState() {
+            if (excelClicked && whatsappClicked) {
+                const btn = document.getElementById('btnNextTask');
+                btn.classList.remove('hidden');
+                btn.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // Export metrics spreadsheet structuring single explicit top alignment row
+        document.getElementById('btnDownloadExcel').addEventListener('click', () => {
+            const oc = document.getElementById('ocName').value || 'N/A';
+            const dt = document.getElementById('inspectionDate').value || 'N/A';
+            const fd = document.getElementById('fieldName').value || 'N/A';
+            const tk = document.getElementById('taskNo').value || 'N/A';
+
+            // Build array grid structuring matrix outputs
+            const rows = [
+                ["TASK INSPECTION FORM REPORT", "", "", "", "", "", ""],
+                [],
+                ["OC Name:", oc, "", "Date:", dt, "", ""],
+                ["Field:", fd, "", "Task No:", tk, "", ""],
+                [],
+                ["Palm No", "Harvested Palm", "Pruning", "ULF", "Left Bunches", "Missed Bunches", "Remarks"]
+            ];
+
+            let sumUlf = 0; let sumLeft = 0; let sumMissed = 0; let countHv = 0;
+            dataStore.forEach(p => {
+                if (p.harvested === 'Y') countHv++;
+                sumUlf += Number(p.ulf || 0);
+                sumLeft += Number(p.leftBunches || 0);
+                sumMissed += Number(p.missedBunches || 0);
+
+                rows.push([
+                    p.palmNo,
+                    p.harvested,
+                    p.pruning,
+                    p.ulf === '' ? 0 : Number(p.ulf),
+                    p.leftBunches === '' ? 0 : Number(p.leftBunches),
+                    p.missedBunches === '' ? 0 : Number(p.missedBunches),
+                    p.remarks.trim() === '' ? 'nil' : p.remarks
+                ]);
+            });
+
+            // Append totals summaries mapping columns explicitly below matrix rows
+            rows.push([]);
+            rows.push(["TOTAL", "", "", sumUlf, sumLeft, sumMissed, ""]);
+            
+            const finalAvg = countHv > 0 ? (sumUlf / countHv) : 0;
+            rows.push(["ULF AVG (Harvested Only)", "", "", finalAvg.toFixed(2), "", "", ""]);
+
+            // Parse grid into raw Sheet workbook mapping array sheets
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            XLSX.utils.book_append_sheet(wb, ws, "Inspection_Data");
+
+            // Complete save download delivery trigger
+            XLSX.writeFile(wb, `Task_Inspection_No_${tk}.xlsx`);
+
+            // Switch button look into completion checkmark flags parameters
+            excelClicked = true;
+            document.getElementById('badgeDownload').innerText = "✓ Done";
+            document.getElementById('badgeDownload').className = "bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold";
+            document.getElementById('btnDownloadExcel').className = "w-full bg-emerald-700 text-white/90 font-bold py-3.5 px-4 rounded-xl shadow-sm flex items-center justify-between border-2 border-emerald-500 transition-all";
+            
+            verifyWorkflowState();
+        });
+
+        // Pack textual report layouts into WhatsApp web launch layouts URL encoding
+        document.getElementById('btnShareWhatsApp').addEventListener('click', () => {
+            const oc = document.getElementById('ocName').value || 'N/A';
+            const dt = document.getElementById('inspectionDate').value || 'N/A';
+            const fd = document.getElementById('fieldName').value || 'N/A';
+            const tk = document.getElementById('taskNo').value || 'N/A';
+
+            const hv = document.getElementById('summaryHarvested').innerText;
+            const pr = document.getElementById('summaryPruned').innerText;
+            const ulf = document.getElementById('summaryUlfTotal').innerText;
+            const avg = document.getElementById('summaryUlfAvg').innerText;
+            const lf = document.getElementById('summaryLeft').innerText;
+            const ms = document.getElementById('summaryMissed').innerText;
+
+            const msgText = `🌴 *TASK INSPECTION SUMMARY* 🌴\n\n` +
+                            `👤 *OC Name:* ${oc}\n` +
+                            `📅 *Date:* ${dt}\n` +
+                            `🏗️ *Field:* ${fd}\n` +
+                            `🔢 *Task No:* ${tk}\n\n` +
+                            `📊 *TOTAL METRICS (50 Palms):*\n` +
+                            `• Total Harvested: ${hv}\n` +
+                            `• Total Pruned: ${pr}\n` +
+                            `• Total ULF Fruits: ${ulf}\n` +
+                            `• Total Left Bunches: ${lf}\n` +
+                            `• Total Missed Bunches: ${ms}\n` +
+                            `⚡ *ULF Avg (Harvested Only):* ${avg}\n\n` +
+                            `📝 _Excel file has been compiled successfully and is ready to attach._`;
+
+            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msgText)}`, '_blank');
+
+            // Switch layout attributes flags triggers status indicators
+            whatsappClicked = true;
+            document.getElementById('badgeShare').innerText = "✓ Sent";
+            document.getElementById('badgeShare').className = "bg-teal-100 text-teal-800 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold";
+            document.getElementById('btnShareWhatsApp').className = "w-full bg-teal-700 text-white/90 font-bold py-3.5 px-4 rounded-xl shadow-sm flex items-center justify-between border-2 border-teal-500 transition-all";
+
+            verifyWorkflowState();
+        });
+
+        // Trigger sequence reset incrementing current running Task No parameter by +1
+        document.getElementById('btnNextTask').addEventListener('click', () => {
+            // Increment task counter value 
+            const currentTask = Number(document.getElementById('taskNo').value || 0);
+            document.getElementById('taskNo').value = currentTask + 1;
+
+            // Clear variables and checkboxes back down to ground state parameters
+            initDataStore();
+            renderPalms();
+
+            // Re-hide step layout flags state conditions elements
+            excelClicked = false;
+            whatsappClicked = false;
+
+            document.getElementById('badgeDownload').innerText = "Step 1";
+            document.getElementById('badgeDownload').className = "bg-emerald-700 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider";
+            document.getElementById('btnDownloadExcel').className = "w-full bg-emerald-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-md flex items-center justify-between transition-all";
+
+            document.getElementById('badgeShare').innerText = "Step 2";
+            document.getElementById('badgeShare').className = "bg-teal-700 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider";
+            document.getElementById('btnShareWhatsApp').className = "w-full bg-teal-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-md flex items-center justify-between transition-all";
+
+            document.getElementById('btnNextTask').classList.add('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // Sandbox debugging generation fill setup tools logic
+        document.getElementById('btnQuickFill').addEventListener('click', () => {
+            document.getElementById('ocName').value = "John Doe";
+            document.getElementById('inspectionDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('fieldName').value = "Block 3B";
+            if(!document.getElementById('taskNo').value) document.getElementById('taskNo').value = "101";
+
+            dataStore.forEach(p => {
+                p.harvested = Math.random() > 0.3 ? 'Y' : 'N';
+                p.pruning = Math.random() > 0.4 ? 'Y' : 'N';
+                p.ulf = p.harvested === 'Y' ? Math.floor(Math.random() * 5) : '';
+                p.leftBunches = Math.random() > 0.8 ? Math.floor(Math.random() * 3) : '';
+                p.missedBunches = Math.random() > 0.85 ? Math.floor(Math.random() * 2) : '';
+                p.remarks = Math.random() > 0.9 ? "Need loose fruit collector bag" : "";
+            });
+            renderPalms();
+        });
+
+        // Attach layout filters events modifications triggers
+        document.getElementById('palmFilter').addEventListener('change', renderPalms);
+
+        // Core initializer script executions launcher
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('inspectionDate').value = new Date().toISOString().split('T')[0];
+            initDataStore();
+            renderPalms();
+        });
+    </script>
+</body>
+</html>
